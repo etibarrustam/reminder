@@ -3,10 +3,21 @@ package client
 import (
 	"flag"
 	"fmt"
-	"net/mail"
 	"os"
+	"strings"
 	"time"
 )
+
+type idsFlag []string
+
+func (list idsFlag) String() string {
+	return strings.Join(list, ",")
+}
+
+func (list *idsFlag) Set(v string) error {
+	*list = append(*list, v)
+	return nil
+}
 
 type BackendHTTPClient interface {
 	Create(title, message string, duration time.Duration) ([]byte, error)
@@ -16,16 +27,16 @@ type BackendHTTPClient interface {
 	Healthy(host string) bool
 }
 
-func NewSwitch(uri string) Switch  {
+func NewSwitch(uri string) Switch {
 	httpClient := NewHTTPClient(uri)
 	s := Switch{
-		client: httpClient,
+		client:        httpClient,
 		backendAPIURL: uri,
 	}
 	s.commands = map[string]func() func(string) error{
 		"create": s.create,
-		"edit": s.edit,
-		"fetch": s.fetch,
+		"edit":   s.edit,
+		"fetch":  s.fetch,
 		"delete": s.delete,
 		"health": s.health,
 	}
@@ -33,12 +44,12 @@ func NewSwitch(uri string) Switch  {
 }
 
 type Switch struct {
-	client BackendHTTPClient
+	client        BackendHTTPClient
 	backendAPIURL string
-	commands map[string]func() func(string) error
+	commands      map[string]func() func(string) error
 }
 
-func (s Switch) Switch() error  {
+func (s Switch) Switch() error {
 	cmdName := os.Args[1]
 	cmd, ok := s.commands[cmdName]
 
@@ -49,7 +60,7 @@ func (s Switch) Switch() error  {
 	return cmd()(cmdName)
 }
 
-func (s Switch) Help()  {
+func (s Switch) Help() {
 	var help string
 
 	for name := range s.commands {
@@ -85,7 +96,9 @@ func (s Switch) create() func(string) error {
 }
 func (s Switch) edit() func(string) error {
 	return func(cmd string) error {
+		ids := idsFlag{}
 		editCmd := flag.NewFlagSet(cmd, flag.ExitOnError)
+		editCmd.Var(&ids, "id", "The ID (int) of the reminder to edit")
 		t, m, d := s.reminderFlags(editCmd)
 
 		if err := s.checkArgs(2); err != nil {
@@ -95,33 +108,81 @@ func (s Switch) edit() func(string) error {
 			return err
 		}
 
-		res, err := s.client.Create(*t, *m, *d)
+		lastID := ids[len(ids)-1]
+		res, err := s.client.Edit(lastID, *t, *m, *d)
 
 		if err != nil {
 			return wrapError("could not edit reminder", err)
 		}
 
-		fmt.Printf("Reminder rfirf successfully: \n%s", string(res))
+		fmt.Printf("Reminder edited successfully: \n%s", string(res))
 
-		fmt.Println("create reminder")
 		return nil
 	}
 }
 func (s Switch) fetch() func(string) error {
 	return func(cmd string) error {
-		fmt.Println("fetch reminder")
+		ids := idsFlag{}
+		fetchCmd := flag.NewFlagSet(cmd, flag.ExitOnError)
+		fetchCmd.Var(&ids, "id", "List of reminder IDs (int) to fetch")
+
+		if err := s.checkArgs(1); err != nil {
+			return err
+		}
+		if err := s.parseCmd(fetchCmd); err != nil {
+			return err
+		}
+
+		res, err := s.client.Fetch(ids)
+
+		if err != nil {
+			return wrapError("could not fetch reminder(s)", err)
+		}
+
+		fmt.Printf("Reminders fetched successfully: \n%s", string(res))
+
 		return nil
 	}
 }
 func (s Switch) delete() func(string) error {
 	return func(cmd string) error {
-		fmt.Println("delete reminder")
+		ids := idsFlag{}
+		deleteCmd := flag.NewFlagSet(cmd, flag.ExitOnError)
+		deleteCmd.Var(&ids, "id", "List of reminder IDs (int) to delete")
+
+		if err := s.checkArgs(1); err != nil {
+			return err
+		}
+		if err := s.parseCmd(deleteCmd); err != nil {
+			return err
+		}
+
+		err := s.client.Delete(ids)
+
+		if err != nil {
+			return wrapError("could not delete reminder(s)", err)
+		}
+
+		fmt.Printf("Reminders deleted successfully: \n%v\n", ids)
+
 		return nil
 	}
 }
 func (s Switch) health() func(string) error {
 	return func(cmd string) error {
-		fmt.Println("health reminder")
+		var host string
+		healthCmd := flag.NewFlagSet(cmd, flag.ExitOnError)
+		healthCmd.StringVar(&host, "host", s.backendAPIURL, "Host to ping for health")
+
+		if err := s.parseCmd(healthCmd); err != nil {
+			return err
+		}
+		if !s.client.Healthy(host) {
+			fmt.Printf("host %s is down\n", host)
+		} else {
+			fmt.Printf("host %s is up and running\n", host)
+		}
+
 		return nil
 	}
 }
@@ -143,7 +204,7 @@ func (s Switch) parseCmd(cmd *flag.FlagSet) error {
 	err := cmd.Parse(os.Args[2:])
 
 	if err != nil {
-		return wrapError("could not parse '" + cmd.Name() +"'", err)
+		return wrapError("could not parse '"+cmd.Name()+"'", err)
 	}
 
 	return nil
@@ -153,7 +214,7 @@ func (s Switch) checkArgs(minArgs int) error {
 	if len(os.Args) == 3 && os.Args[2] == "--help" {
 		return nil
 	}
-	if len(os.Args) - 2 < minArgs {
+	if len(os.Args)-2 < minArgs {
 		fmt.Printf(
 			"incorrect use of %s\n%s %s --help\n",
 			os.Args[1], os.Args[0], os.Args[1],
@@ -162,6 +223,6 @@ func (s Switch) checkArgs(minArgs int) error {
 
 	return fmt.Errorf(
 		"%s excepts as least %d arg(s), %d provided",
-		os.Args[1], minArgs, len(os.Args) - 2,
+		os.Args[1], minArgs, len(os.Args)-2,
 	)
 }

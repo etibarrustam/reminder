@@ -9,14 +9,14 @@ import (
 
 var (
 	backendURIFlag = flag.String("backend", "http://localhost:8080", "Backend api url")
-	helpFlag = flag.Bool("help", false, "Display helpful message")
+	helpFlag       = flag.Bool("help", false, "Display helpful message")
 )
 
-func main()  {
+func main() {
 	flag.Parse()
 	s := client.NewSwitch(*backendURIFlag)
 
-	if * helpFlag || len(os.Args) == 1 {
+	if *helpFlag || len(os.Args) == 1 {
 		s.Help()
 		return
 	}
@@ -24,7 +24,7 @@ func main()  {
 	err := s.Switch()
 
 	if err != nil {
-		fmt.Printf("switch error: %s", err)
+		fmt.Printf("switch error: %v\n", err)
 
 		os.Exit(2)
 	}
