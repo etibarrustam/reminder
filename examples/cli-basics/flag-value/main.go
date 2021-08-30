@@ -9,11 +9,11 @@ import (
 
 type idsFlag []string
 
-func (ids idsFlag) String() string  {
+func (ids idsFlag) String() string {
 	return strings.Join(ids, ",")
 }
 
-func (ids *idsFlag) Set(id string) error  {
+func (ids *idsFlag) Set(id string) error {
 	*ids = append(*ids, id)
 	return nil
 }
@@ -23,7 +23,7 @@ type person struct {
 	born time.Time
 }
 
-func (p person) String() string  {
+func (p person) String() string {
 	return fmt.Sprintf("my name is: %s, and I am %s", p.name, p.born.String())
 }
 
@@ -33,7 +33,7 @@ func (p *person) Set(name string) error {
 	return nil
 }
 
-func main()  {
+func main() {
 	var ids idsFlag
 	var p person
 

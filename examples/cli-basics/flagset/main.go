@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func main()  {
+func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("no comment")
 		os.Exit(2)
