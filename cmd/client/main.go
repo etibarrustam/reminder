@@ -4,7 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"reminder/client"
+
+	"github.com/etibarrustam/reminder/client"
 )
 
 var (

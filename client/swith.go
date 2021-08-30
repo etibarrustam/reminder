@@ -83,14 +83,10 @@ func (s Switch) create() func(string) error {
 		}
 
 		res, err := s.client.Create(*t, *m, *d)
-
 		if err != nil {
 			return wrapError("could not create reminder", err)
 		}
-
-		fmt.Printf("Reminder created successfully: \n%s", string(res))
-
-		fmt.Println("create reminder")
+		fmt.Printf("reminder created successfully:\n%s", string(res))
 		return nil
 	}
 }
@@ -216,13 +212,13 @@ func (s Switch) checkArgs(minArgs int) error {
 	}
 	if len(os.Args)-2 < minArgs {
 		fmt.Printf(
-			"incorrect use of %s\n%s %s --help\n",
+			"incorect use of %s\n%s %s --help\n",
 			os.Args[1], os.Args[0], os.Args[1],
 		)
+		return fmt.Errorf(
+			"%s expects at least: %d arg(s), %d provided",
+			os.Args[1], minArgs, len(os.Args)-2,
+		)
 	}
-
-	return fmt.Errorf(
-		"%s excepts as least %d arg(s), %d provided",
-		os.Args[1], minArgs, len(os.Args)-2,
-	)
+	return nil
 }
